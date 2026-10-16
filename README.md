@@ -63,8 +63,10 @@ aws dynamodb scan --table-name ssp-load-audit
    ```bash
    cd terraform/bootstrap
    terraform init
-   terraform apply -var github_repo=<owner>/<repo>
+   terraform apply -var github_repo=<owner>/<repo> \
+     -var github_subject_prefix="$(gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix)"
    ```
+   GitHub's OIDC subject includes the owner and repo IDs, so the role trusts this exact repository even if the name is later reused.
 2. **Add repository secrets** in GitHub: `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET` (both from the bootstrap outputs) and `ALERT_EMAIL`.
 3. **Push to `main`.** The pipeline runs tests, format and validate, Checkov, then plan and apply. Pull requests stop at plan.
 4. Confirm the SNS subscription email that AWS sends.

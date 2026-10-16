@@ -25,6 +25,20 @@ variable "github_repo" {
   type        = string
 }
 
+# GitHub's OIDC subject can include immutable owner and repo IDs, e.g.
+#   repo:owner@123/name@456
+# so a renamed or re-registered repo with the same name cannot assume the role.
+# Find yours with: gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+variable "github_subject_prefix" {
+  description = "OIDC subject prefix; defaults to repo:<owner>/<name>"
+  type        = string
+  default     = null
+}
+
+locals {
+  subject = coalesce(var.github_subject_prefix, "repo:${var.github_repo}")
+}
+
 data "aws_caller_identity" "me" {}
 
 # ---------- State bucket ----------
@@ -86,8 +100,8 @@ data "aws_iam_policy_document" "github_trust" {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_repo}:ref:refs/heads/main",
-        "repo:${var.github_repo}:pull_request",
+        "${local.subject}:ref:refs/heads/main",
+        "${local.subject}:pull_request",
       ]
     }
   }
