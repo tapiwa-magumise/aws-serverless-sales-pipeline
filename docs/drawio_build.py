@@ -205,9 +205,8 @@ open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
 # =====================================================================
 L = Doc("LinkedIn", 540, 675)
 L.add("", "rounded=0;fillColor=#FFFFFF;strokeColor=none;", 0, 0, 540, 675)
-L.add("", "rounded=0;fillColor=#1F3B63;strokeColor=none;", 0, 0, 540, 7)
 L.text("Serverless sales data pipeline", 22, 20, 500, 30, fs=23, bold=True)
-L.text("on AWS (London) · built with Terraform · runs at $0", 22, 52, 500, 22, fs=14, color="#1F4E9C")
+L.text("On AWS in London, built with Terraform, runs at $0", 22, 52, 500, 22, fs=14, color="#545B64")
 
 staff = L.shape("Branch staff upload a sales CSV", "users", INK, 120, 86, 40, 40, fs=12, pos="right")
 lcloud = L.group("AWS Cloud", "cloud", 16, 140, 508, 410, fs=11)
@@ -248,9 +247,7 @@ for i, s_ in enumerate(items):
     L.badge(i + 1, x, yy, d=16, fs=9)
     L.text(s_, x + 22, yy - 1, 230, 20, fs=11)
 
-x = 22
-for c, w in [("Terraform", 84), ("GitHub Actions + OIDC", 152), ("No stored keys", 108), ("$0 to run", 80)]:
-    L.chip(c, x, 640, w, 24, fs=11)
-    x += w + 8
+L.text("Deployed by GitHub Actions with OIDC: no stored AWS keys.", 22, 636, 500, 18, fs=11)
+L.text("github.com/gumagatsby/aws-serverless-sales-pipeline", 22, 654, 500, 18, fs=11, color="#545B64")
 open(f"{OUTDIR}/linkedin-architecture.drawio", "w").write(L.xml())
 print("ok")

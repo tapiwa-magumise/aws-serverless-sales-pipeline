@@ -96,6 +96,23 @@ function sceneAt(f: number): Scene {
   return (Object.keys(SCENES) as Scene[]).find((s) => f >= SCENES[s][0] && f < SCENES[s][1]) ?? "close";
 }
 
+// ---------------------------------------------------------------- drawn icons (no unicode glyphs)
+const Tick: React.FC<{ size?: number; color?: string }> = ({ size = 20, color = GREEN }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 10.5l4 4 8-9" />
+  </svg>
+);
+const Cross: React.FC<{ size?: number; color?: string }> = ({ size = 20, color = RED }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth={2.6} strokeLinecap="round">
+    <path d="M5 5l10 10M15 5L5 15" />
+  </svg>
+);
+const Flag: React.FC = () => (
+  <svg width={22} height={22} viewBox="0 0 22 22" fill="none" stroke="#fff" strokeWidth={2} strokeLinejoin="round">
+    <path d="M5 20V3M5 4h11l-2.5 4L16 12H5" />
+  </svg>
+);
+
 // ---------------------------------------------------------------- building blocks
 const Badge: React.FC<{ n: number; size?: number; color?: string }> = ({ n, size = 44, color = INK }) => (
   <div style={{ width: size, height: size, borderRadius: size, background: color, color: "#fff", display: "flex",
@@ -124,14 +141,14 @@ const Node: React.FC<{ id: NodeId; f: number; appear: number; glow?: number; tin
   const size = n.size ?? ICON;
   const t = ramp(f, appear, appear + 12);
   const lab: React.CSSProperties =
-    n.pos === "below" ? { left: n.x - 120, width: 240, top: n.y + size / 2 + 10, textAlign: "center" }
-    : n.pos === "above" ? { left: n.x - 120, width: 240, top: n.y - size / 2 - 44, textAlign: "center" }
-    : { left: n.x + size / 2 + 14, width: 190, top: n.y - 38, textAlign: "left" };
+    n.pos === "below" ? { left: n.x - 120, width: 240, top: n.y + size / 2 + 18, textAlign: "center" }
+    : n.pos === "above" ? { left: n.x - 120, width: 240, top: n.y - size / 2 - 50, textAlign: "center" }
+    : { left: n.x + size / 2 + 20, width: 186, top: n.y - 38, textAlign: "left" };
   return (
     <>
       <div style={{ position: "absolute", left: n.x - size / 2, top: n.y - size / 2, width: size, height: size, opacity: t,
-        transform: `scale(${0.85 + 0.15 * t + glow * 0.08})`, borderRadius: 10,
-        boxShadow: glow ? `0 0 0 ${6 * glow}px ${tint}33, 0 0 ${34 * glow}px ${tint}66` : "none" }}>
+        transform: `scale(${0.85 + 0.15 * t + glow * 0.06})`, borderRadius: 10 }}>
+        <div style={{ position: "absolute", inset: -9, border: `3px solid ${tint}`, borderRadius: 14, opacity: glow }} />
         <Img src={staticFile(n.icon)} style={{ width: size, height: size, borderRadius: 8 }} />
       </div>
       <div style={{ position: "absolute", ...lab, opacity: t, fontSize: 21, lineHeight: 1.22, color: INK, fontWeight: 600, whiteSpace: "pre-line" }}>
@@ -166,7 +183,7 @@ const Packet: React.FC<{ edge: string; f: number; start: number; dur?: number; c
   const fade = 1 - ramp(f, start + dur, start + dur + 6);
   return (
     <div style={{ position: "absolute", left: x - 15, top: y - 15, width: 30, height: 30, borderRadius: 30, background: color,
-      boxShadow: `0 0 0 6px ${color}33`, opacity: fade, display: "flex", alignItems: "center", justifyContent: "center",
+      opacity: fade, display: "flex", alignItems: "center", justifyContent: "center",
       color: "#fff", fontSize: 13, fontWeight: 700 }}>{label}</div>
   );
 };
@@ -180,7 +197,7 @@ const Panel: React.FC<{ f: number; from: number; to: number; children: React.Rea
 };
 
 const Card: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
-  <div style={{ background: "#F4F6F9", border: "1px solid #DDE2EA", borderRadius: 14, padding: "18px 22px", ...style }}>{children}</div>
+  <div style={{ background: "#FFFFFF", border: "1px solid #D5DBE3", borderRadius: 10, padding: "18px 22px", ...style }}>{children}</div>
 );
 
 // ---------------------------------------------------------------- data (from the real test run, 16 Oct 2026)
@@ -228,9 +245,7 @@ const Problem: React.FC<{ f: number }> = ({ f }) => {
         );
       })}
       <div style={{ position: "absolute", left: 60, right: 60, top: 980, opacity: err, textAlign: "center" }}>
-        <div style={{ display: "inline-flex", gap: 14, alignItems: "center", background: "#FDECEA", color: RED, padding: "14px 26px", borderRadius: 40, fontSize: 30, fontWeight: 700 }}>
-          ⚠ Errors found after the report goes out
-        </div>
+        <div style={{ color: RED, fontSize: 34, fontWeight: 700 }}>Errors found after the report goes out</div>
         <div style={{ fontSize: 28, color: MUTED, marginTop: 22 }}>No record of which file a number came from.</div>
       </div>
     </AbsoluteFill>
@@ -254,7 +269,7 @@ const Diagram: React.FC<{ f: number }> = ({ f }) => {
         <div style={{ position: "absolute", left: 0, top: 0, background: "#232F3E", color: "#fff", fontSize: 18, fontWeight: 700, padding: "6px 12px" }}>aws</div>
         <div style={{ position: "absolute", left: 70, top: 6, fontSize: 22, fontWeight: 700, color: "#232F3E" }}>AWS Cloud</div>
         <div style={{ position: "absolute", left: 24, top: 56, right: 24, bottom: 24, border: "2.5px dashed #00A4A6" }}>
-          <div style={{ position: "absolute", left: 0, top: 0, background: "#00A4A6", width: 40, height: 40, color: "#fff", fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>⚑</div>
+          <div style={{ position: "absolute", left: 0, top: 0, background: "#00A4A6", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}><Flag /></div>
           <div style={{ position: "absolute", left: 52, top: 8, fontSize: 21, fontWeight: 700, color: "#147EBA" }}>eu-west-2 (London)</div>
         </div>
       </div>
@@ -336,7 +351,7 @@ const ValidatePanel: React.FC<{ f: number }> = ({ f }) => {
           return (
             <div key={i} style={{ opacity: t, transform: `translateX(${(1 - t) * 20}px)`, display: "flex", gap: 10, alignItems: "baseline",
               fontSize: 19, lineHeight: 1.25 }}>
-              <span style={{ color: ok ? GREEN : RED, fontWeight: 700, width: 20 }}>{ok ? "✓" : "✗"}</span>
+              <span style={{ width: 20, alignSelf: "center", display: "flex" }}>{ok ? <Tick /> : <Cross />}</span>
               <span style={{ fontFamily: MONO, color: INK }}>{br} {sku.includes("2O") ? <>COF-2<u style={{ color: RED, fontWeight: 700 }}>O</u>4</> : sku} ×{units}</span>
               {reason ? <span style={{ color: RED, fontSize: 16 }}>{reason}</span> : null}
             </div>
@@ -408,7 +423,7 @@ const FailurePanel: React.FC<{ f: number }> = ({ f }) => {
         </Card>
       </Panel>
       <Panel f={f} from={a + 205} to={b}>
-        <Card style={{ background: "#fff", boxShadow: "0 10px 30px #00000022", borderLeft: `6px solid ${RED}` }}>
+        <Card style={{ background: "#fff", boxShadow: "0 10px 30px #00000022" }}>
           <div style={{ fontSize: 18, color: MUTED }}>AWS Notifications · to: operations</div>
           <div style={{ fontSize: 25, fontWeight: 700, color: INK, marginTop: 4 }}>ALARM: "ssp-file-in-dead-letter-queue"</div>
           <div style={{ fontSize: 20, color: MUTED, marginTop: 4 }}>A sales file failed processing 3 times. See the runbook.</div>
@@ -436,7 +451,7 @@ const Deliver: React.FC<{ f: number }> = ({ f }) => {
           return (
             <div key={name} style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 16, fontSize: 26 }}>
               <div style={{ width: 40, height: 40, borderRadius: 40, background: done >= 1 ? GREEN : "#D0D7DE", color: "#fff", display: "flex",
-                alignItems: "center", justifyContent: "center", fontWeight: 700, transform: `scale(${0.8 + 0.2 * done})` }}>{done >= 1 ? "✓" : ""}</div>
+                alignItems: "center", justifyContent: "center", transform: `scale(${0.8 + 0.2 * done})` }}>{done >= 1 ? <Tick size={24} color="#fff" /> : null}</div>
               <span style={{ fontFamily: MONO, fontWeight: 700, width: 130 }}>{name}</span>
               <span style={{ color: MUTED }}>{what}</span>
             </div>
@@ -463,16 +478,12 @@ const Close: React.FC<{ f: number }> = ({ f }) => {
   const [a] = SCENES.close;
   if (f < a) return null;
   const t = ramp(f, a, a + 18);
-  const chips = ["Terraform", "GitHub Actions + OIDC", "No stored keys", "$0 to run"];
   return (
     <AbsoluteFill style={{ opacity: t, alignItems: "center", justifyContent: "center", textAlign: "center", padding: 80 }}>
       <div style={{ fontSize: 64, fontWeight: 700, color: INK, lineHeight: 1.1 }}>Serverless sales<br />data pipeline</div>
-      <div style={{ fontSize: 32, color: BLUE, marginTop: 18 }}>on AWS · built with Terraform</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 50, maxWidth: 900 }}>
-        {chips.map((c, i) => (
-          <div key={c} style={{ background: "#EAF0F8", border: "1.5px solid #C4D2E6", color: BLUE, fontWeight: 700, fontSize: 28, padding: "12px 26px",
-            borderRadius: 40, opacity: ramp(f, a + 15 + i * 8, a + 25 + i * 8) }}>{c}</div>
-        ))}
+      <div style={{ fontSize: 32, color: MUTED, marginTop: 18 }}>On AWS, built with Terraform</div>
+      <div style={{ fontSize: 30, color: INK, lineHeight: 1.5, marginTop: 50, maxWidth: 820, opacity: ramp(f, a + 15, a + 30) }}>
+        Deployed by GitHub Actions with no stored keys.<br />Runs at $0.
       </div>
       <div style={{ fontSize: 26, color: MUTED, marginTop: 60, opacity: ramp(f, a + 50, a + 65) }}>github.com/gumagatsby/aws-serverless-sales-pipeline</div>
     </AbsoluteFill>
@@ -485,7 +496,6 @@ export const Pipeline: React.FC = () => {
   useVideoConfig();
   return (
     <AbsoluteFill style={{ background: "#FFFFFF", fontFamily: FONT, color: INK }}>
-      <div style={{ position: "absolute", left: 0, top: 0, right: 0, height: 12, background: NAVY }} />
       <Header f={f} />
       <Problem f={f} />
       <Diagram f={f} />
@@ -496,8 +506,6 @@ export const Pipeline: React.FC = () => {
       <FailurePanel f={f} />
       <Deliver f={f} />
       <Close f={f} />
-      {/* progress bar */}
-      <div style={{ position: "absolute", left: 0, bottom: 0, height: 8, width: `${(f / TOTAL) * 100}%`, background: BLUE, opacity: 0.6 }} />
     </AbsoluteFill>
   );
 };
