@@ -6,6 +6,8 @@ Branches upload a weekly sales CSV. Within seconds every row is checked, good ro
 
 ![Architecture](docs/architecture.png)
 
+Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in [diagrams.net](https://app.diagrams.net)). A portrait version for social posts is in [`docs/linkedin-architecture.drawio`](docs/linkedin-architecture.drawio).
+
 ## The problem it solves
 
 A retailer's branches each send a sales spreadsheet. Head office combines them by hand, errors surface only after reports have gone out, and nobody can say which file a number came from. This pipeline replaces the manual step with one that:
@@ -90,6 +92,6 @@ src/validator/      Lambda code: rules.py (pure validation) and handler.py (AWS 
 tests/              Unit tests for every validation rule
 terraform/          Main stack: storage, ingest, catalog, monitoring
 terraform/bootstrap State bucket and GitHub OIDC deploy role
-docs/               Architecture diagram (as code), decisions, runbook
+docs/               Architecture diagrams (draw.io + PNG), walkthrough, decisions, runbook
 .github/workflows/  CI/CD
 ```
