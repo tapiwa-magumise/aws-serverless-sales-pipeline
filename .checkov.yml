@@ -10,3 +10,9 @@ skip-check:
   - CKV_AWS_116  # Lambda DLQ: only applies to async invokes; the SQS queue already has a DLQ
   - CKV_AWS_115  # Reserved concurrency: capped instead with SQS maximum_concurrency = 2
   - CKV_AWS_272  # Lambda code signing: code only reaches AWS through the reviewed CI pipeline
+  - CKV_AWS_145  # S3 with a customer-managed KMS key: monthly key charge; buckets use SSE-S3
+  - CKV_AWS_144  # S3 cross-region replication: doubles storage and transfer cost; data is rebuildable from raw files
+  - CKV_AWS_18   # S3 access logging: adds storage and log volume; would be on in a client account
+  - CKV_AWS_21   # S3 versioning on data buckets: curated data is rebuilt from raw, raw expires in 30 days (state bucket IS versioned)
+  - CKV2_AWS_62  # S3 event notifications on every bucket: only the raw bucket needs them, and has them
+  - CKV2_AWS_6   # False positive: every bucket has a public access block via for_each (storage.tf)

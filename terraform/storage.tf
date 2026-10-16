@@ -80,6 +80,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "curated" {
+  bucket = aws_s3_bucket.this["curated"].id
+  rule {
+    id     = "abort-failed-uploads"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload { days_after_initiation = 1 }
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "results" {
   bucket = aws_s3_bucket.this["results"].id
   rule {
