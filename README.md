@@ -1,5 +1,7 @@
 # Serverless sales data pipeline on AWS
 
+[![ci](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml)
+
 Branches upload a weekly sales CSV. Within seconds every row is checked, good rows land in a queryable data lake, bad rows are kept with the reason they failed, and every file gets an audit record. Failures alert someone by email. The whole stack is Terraform, deployed by GitHub Actions with no stored AWS keys, and it is designed to run at zero cost.
 
 ![Architecture](docs/architecture.png)
