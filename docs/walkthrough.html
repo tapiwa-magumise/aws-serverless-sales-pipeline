@@ -1,0 +1,153 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>Walkthrough: Serverless sales data pipeline</title>
+<style>
+@page{size:A4;margin:16mm 16mm 18mm}
+body{font:10.2pt/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;color:#16191f;margin:0}
+h1{font-size:21pt;margin:0 0 2px;color:#1f3b63}
+.sub{color:#4a5260;margin:0 0 14px}
+h2{font-size:14pt;color:#1f3b63;margin:20px 0 6px;padding-top:6px;border-top:2px solid #1f3b63;break-after:avoid}
+h3{font-size:11pt;margin:12px 0 4px;break-after:avoid}
+p{margin:4px 0}
+ul,ol{margin:4px 0;padding-left:18px}li{margin:2px 0}
+code{font:9pt/1.4 Menlo,monospace;background:#eef1f5;padding:1px 4px;border-radius:3px}
+pre{font:8.6pt/1.45 Menlo,monospace;background:#f3f5f8;border:1px solid #dde2ea;border-radius:5px;padding:8px 10px;white-space:pre-wrap;break-inside:avoid;margin:6px 0}
+table{border-collapse:collapse;width:100%;margin:6px 0;font-size:9.4pt;break-inside:avoid}
+th,td{border:1px solid #d3d9e2;padding:4px 6px;text-align:left;vertical-align:top}
+th{background:#e9eef5}
+.box{background:#f4f7fb;border-left:4px solid #1f4e9c;padding:6px 10px;margin:8px 0;break-inside:avoid}
+.q{font-weight:700;margin-top:8px}
+.a{margin:2px 0 6px}
+img{width:100%;border:1px solid #dde2ea;border-radius:4px;margin:6px 0}
+.page{break-before:page}
+</style></head><body>
+
+<h1>Serverless sales data pipeline</h1>
+<p class="sub">Walkthrough in five parts: what each piece does, why it was built that way, and how to talk about it in an interview.<br>Repo: github.com/gumagatsby/aws-serverless-sales-pipeline</p>
+
+<img src="architecture.png" alt="Architecture diagram">
+
+<div class="box"><b>The one-sentence pitch.</b> Branches upload a sales CSV. Every row is checked within seconds, good rows become queryable with SQL, bad rows are kept with the reason they failed, every file gets an audit record, and someone is emailed if anything breaks. It's all Terraform, deployed by GitHub Actions with no stored AWS keys, and it costs nothing to run.</div>
+
+<h2>Part 1. The flow: what happens when a file is uploaded</h2>
+<ol>
+<li><b>Upload.</b> A branch puts <code>weekly-sales-w41.csv</code> into the <b>raw S3 bucket</b> under <code>incoming/</code>.</li>
+<li><b>Event.</b> S3 sees a new <code>.csv</code> under <code>incoming/</code> and sends an "object created" message to the <b>SQS queue</b>. Files elsewhere in the bucket, or not ending in .csv, are ignored.</li>
+<li><b>Trigger.</b> Lambda polls the queue and runs the <b>validator</b> with up to 5 messages at a time. No more than 2 copies run at once.</li>
+<li><b>Claim.</b> The validator writes an item to the <b>DynamoDB audit table</b>, but only if that file (name plus content fingerprint) has never been seen. If it has, the file is skipped. This is the duplicate guard.</li>
+<li><b>Validate.</b> Each row is checked: date valid and not in the future, known branch, SKU shaped like <code>ABC-123</code>, units above zero, revenue and cost not negative, no duplicate rows.</li>
+<li><b>Write.</b> Good rows go to <code>curated/sales/dt=&lt;today&gt;/</code>. Bad rows go to <code>curated/rejected/dt=&lt;today&gt;/</code> with a list of every reason.</li>
+<li><b>Record.</b> The audit item is updated with the status (<code>LOADED</code>, <code>LOADED_WITH_REJECTS</code> or <code>FAILED</code>), the counts and the finish time.</li>
+<li><b>Query.</b> An analyst runs SQL in <b>Athena</b>. The <b>Glue Data Catalog</b> tells Athena what the files look like and where they live.</li>
+<li><b>If it breaks.</b> A failed message goes back on the queue and is retried. After 3 failures it moves to the <b>dead-letter queue</b>. A <b>CloudWatch alarm</b> sees it and <b>SNS</b> emails you.</li>
+</ol>
+<p><b>What you saw live:</b> the sample file had 10 rows, 5 loaded and 5 rejected. Re-uploading it was skipped as a duplicate.</p>
+
+<h2>Part 2. The validator code</h2>
+<h3>Two files, on purpose</h3>
+<table><tr><th>File</th><th>Job</th><th>Why separate</th></tr>
+<tr><td><code>rules.py</code></td><td>Pure validation: takes text, returns loaded rows, rejected rows and reasons.</td><td>No AWS code, so it's tested on a laptop in milliseconds (<code>tests/test_rules.py</code>). Business rules are easy to read, change and explain.</td></tr>
+<tr><td><code>handler.py</code></td><td>Plumbing: reads from S3, writes to S3 and DynamoDB, handles retries.</td><td>Keeps the AWS wiring in one place. If the storage changed, the rules wouldn't.</td></tr></table>
+
+<h3>Key ideas in <code>rules.py</code></h3>
+<ul>
+<li><b>Every reason, not just the first.</b> <code>_check_row</code> collects all the problems in a row, so a branch fixes everything in one go.</li>
+<li><b>Rows rejected, not files.</b> One bad row doesn't block 499 good ones. The whole file fails only if a column is missing.</li>
+<li><b>Decimal for money.</b> <code>Decimal("59.88")</code> stays exact. Floats can turn it into 59.879999.</li>
+</ul>
+
+<h3>Key ideas in <code>handler.py</code></h3>
+<pre># Idempotency: write only if this file_id has never been seen
+audit.put_item(Item={...}, ConditionExpression="attribute_not_exists(file_id)")</pre>
+<ul>
+<li><b><code>file_id</code> = key + ETag.</b> The ETag is S3's fingerprint of the file contents. The same file uploaded twice has the same ID and is skipped. A corrected file has a new ETag and loads.</li>
+<li><b>Releasing the claim.</b> If processing crashes after the claim, the item is deleted so the retry can run. Without that, a crash would block the file forever.</li>
+<li><b><code>batchItemFailures</code>.</b> Lambda tells SQS exactly which messages failed, so only those retry and the successful ones aren't processed twice.</li>
+<li><b>Structured logs.</b> Every log line is JSON (<code>{"event": "file_processed", ...}</code>), so it can be searched and turned into metrics.</li>
+</ul>
+
+<h2 class="page">Part 3. The Terraform</h2>
+<table><tr><th>File</th><th>What it creates</th><th>Points to notice</th></tr>
+<tr><td><code>versions.tf</code></td><td>Provider and backend</td><td>State lives in S3 with <code>use_lockfile = true</code>, which is native S3 locking, so no DynamoDB lock table is needed (Terraform 1.10+).</td></tr>
+<tr><td><code>storage.tf</code></td><td>3 buckets (raw, curated, Athena results), audit table</td><td><code>for_each</code> builds three buckets from one block. Every bucket blocks public access, is encrypted and refuses non-HTTPS requests. Lifecycle rules expire raw files (30 days) and query results (7 days).</td></tr>
+<tr><td><code>ingest.tf</code></td><td>Queue, dead-letter queue, S3 notification, Lambda, IAM role</td><td>The queue policy only accepts messages from <i>this</i> bucket in <i>this</i> account. The Lambda role can read only <code>incoming/</code> and write only the curated bucket. That's least privilege.</td></tr>
+<tr><td><code>catalog.tf</code></td><td>Glue database and tables, Athena workgroup, saved queries</td><td>Partition projection: Athena works out the <code>dt=</code> folders itself, so no paid crawler is needed. Each query is capped at a 10 MB scan.</td></tr>
+<tr><td><code>monitoring.tf</code></td><td>SNS topic, 2 alarms, budget</td><td>The budget emails at 1% of $1, so any spend at all triggers it.</td></tr>
+<tr><td><code>bootstrap/</code></td><td>State bucket, GitHub OIDC provider, deploy role</td><td>Applied once from the laptop. Its own state is kept locally (backed up to <code>docs/bootstrap.tfstate</code>, never committed).</td></tr></table>
+
+<h3>Commands you used and what they do</h3>
+<table><tr><th>Command</th><th>Meaning</th></tr>
+<tr><td><code>terraform init</code></td><td>Download providers and connect to the state backend</td></tr>
+<tr><td><code>terraform plan -out=tfplan</code></td><td>Show what would change and save that exact plan</td></tr>
+<tr><td><code>terraform apply tfplan</code></td><td>Apply exactly what was reviewed, nothing more</td></tr>
+<tr><td><code>terraform fmt</code> / <code>validate</code></td><td>Tidy formatting, check the syntax and references</td></tr>
+<tr><td><code>terraform providers lock -platform=…</code></td><td>Record provider checksums for Mac <i>and</i> Linux so CI can install them</td></tr></table>
+
+<h2>Part 4. CI/CD and OIDC: deploying without keys</h2>
+<h3>The pipeline (<code>.github/workflows/ci.yml</code>)</h3>
+<table><tr><th>Job</th><th>Runs</th><th>Stops the deploy if</th></tr>
+<tr><td>test</td><td><code>pytest</code> on the validation rules</td><td>A rule is broken</td></tr>
+<tr><td>checks</td><td><code>terraform fmt</code>, <code>validate</code>, Checkov security scan</td><td>The code is badly formatted, invalid or insecure</td></tr>
+<tr><td>deploy</td><td>Plan on pull requests, plan and apply on merge to <code>main</code></td><td>(runs only if both jobs above pass)</td></tr></table>
+
+<h3>How GitHub logs into AWS</h3>
+<ol>
+<li>The job asks GitHub for a short-lived signed token (that's what <code>id-token: write</code> allows).</li>
+<li>The token says who's asking: <code>repo:gumagatsby@266259364/aws-serverless-sales-pipeline@1422026046:ref:refs/heads/main</code>.</li>
+<li>AWS checks the token against the OIDC provider and the role's trust policy, and issues credentials that last about an hour.</li>
+</ol>
+<div class="box"><b>The problem you hit, and why the fix is better.</b> The first deploy failed with <i>Not authorized to perform sts:AssumeRoleWithWebIdentity</i>. GitHub now includes the owner and repo <b>ID numbers</b> in the token, and the trust policy only expected the names. Matching on IDs means that if the repo were renamed and someone else registered the old name, they still couldn't use your AWS role.</div>
+
+<h3>Checkov exceptions</h3>
+<p>The newer Checkov in CI raised 21 findings. One was real (the curated bucket had no lifecycle rule) and was fixed. The rest need paid features (customer-managed KMS keys, cross-region replication, access logs, versioning) or were a false positive. Each is listed in <code>.checkov.yml</code> with its reason. <b>Skipping a check with a written reason is a decision. Ignoring it silently is a risk.</b></p>
+
+<h2 class="page">Part 5. Design decisions and interview questions</h2>
+<p>Full reasoning is in <code>docs/decisions.md</code>. These are the questions an interviewer is most likely to ask, with answers in your own terms.</p>
+
+<p class="q">"Why put SQS between S3 and Lambda?"</p>
+<p class="a">With a direct trigger, a failure retries twice and is then lost unless you add a failure destination. With a queue, every file is a message: it retries, it ends up in a dead-letter queue I'm alerted about, and bursts are smoothed out. One extra component, free at this volume.</p>
+
+<p class="q">"What happens if the same file arrives twice?"</p>
+<p class="a">The audit write is conditional on the file ID (key plus ETag) not existing. The second attempt fails that condition and is skipped, so sales are never double-counted. I tested it live: the re-upload logged <code>skipped_duplicate</code>.</p>
+
+<p class="q">"Why JSON Lines and not Parquet?"</p>
+<p class="a">Parquet is better at scale, but writing it from Lambda needs pyarrow, about 100 MB and a layer. At weekly branch volumes gzip JSON is small and Athena reads it fine. I'd switch to Parquet, probably in a Glue job, at millions of rows a day.</p>
+
+<p class="q">"How do you keep it secure?"</p>
+<p class="a">No public buckets, encryption at rest, HTTPS only, a least-privilege Lambda role, no long-lived keys anywhere (OIDC pinned to the repo's IDs), and a Checkov scan on every change.</p>
+
+<p class="q">"How do you control cost?"</p>
+<p class="a">Serverless only, so nothing runs when idle. No KMS customer keys, NAT gateways or crawlers. Lifecycle expiry on raw files and query results. A 10 MB per-query cap in Athena. Budget alerts on the first cent.</p>
+
+<p class="q">"What would you change for a real client?"</p>
+<p class="a">Turn on what I skipped for cost: customer-managed KMS keys, point-in-time recovery, access logging, versioning, longer log retention. Scope the deploy role down from PowerUser, add a staging environment with a manual approval before production, and move the branch list into a reference table the business can maintain.</p>
+
+<p class="q">"How would someone support this?"</p>
+<p class="a">The runbook (<code>docs/runbook.md</code>) covers each alarm, how to find a failed file, how to replay the dead-letter queue (safely, because processing is idempotent), and how to answer "my file did nothing".</p>
+
+<h2>Checks done (16 October 2026)</h2>
+<table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>Unit tests</td><td>4 of 4 pass, locally and in CI</td></tr>
+<tr><td>Checkov</td><td>Passes in CI, with exceptions documented</td></tr>
+<tr><td>End-to-end load of the sample file</td><td>5 loaded, 5 rejected, audit record written</td></tr>
+<tr><td>Athena saved queries</td><td>Both return correct results</td></tr>
+<tr><td>Duplicate upload</td><td>Skipped; still 1 audit record</td></tr>
+<tr><td>CI/CD deploy via OIDC</td><td>Green: tests, checks, deploy</td></tr>
+<tr><td>Email alert subscription</td><td>Confirmed; test alert sent</td></tr>
+<tr><td>CloudWatch alarms</td><td>Both OK and enabled</td></tr>
+<tr><td>Budget</td><td>$1 limit, actual spend $0.00, alerts at 1% actual and 100% forecast</td></tr>
+<tr><td>Account plan</td><td>Free plan, active</td></tr></table>
+
+<h2>Try it yourself</h2>
+<pre># Upload the sample
+aws s3 cp sample-data/weekly-sales-w41.csv s3://&lt;raw bucket&gt;/incoming/weekly-sales-w41.csv
+
+# See the audit record
+aws dynamodb scan --table-name ssp-load-audit --region eu-west-2
+
+# Watch the Lambda logs live
+aws logs tail /aws/lambda/ssp-validator --region eu-west-2 --follow
+
+# Then in the Athena console: workgroup ssp-sales, Saved queries,
+#   daily-margin-by-branch and rejection-reasons</pre>
+<p>Get the bucket name with <code>terraform -chdir=terraform output -raw raw_bucket</code>.</p>
+
+</body></html>
