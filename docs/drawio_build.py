@@ -198,7 +198,7 @@ d.text("Legend", lx, y + 8, 250, 20, fs=13, bold=True)
 d.text("Grey line: data flow\nRed dashed: failure and alerting\nPink dashed: identity and deployment\nGreen dashed: cost alert",
        lx, y + 30, 250, 80, fs=12, color="#545B64")
 
-open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
+# architecture.drawio is now edited directly in draw.io (AWS reference-architecture style), not generated here.
 
 # =====================================================================
 # 2. LinkedIn: 540x675 page, exported at 2x = 1080x1350
