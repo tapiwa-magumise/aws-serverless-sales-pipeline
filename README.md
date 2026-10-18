@@ -2,6 +2,8 @@
 
 [![ci](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml)
 
+*Deploys are paused. Since 18 October 2026 AWS has refused Lambda calls on this account, so the plan step fails; tests, format, validate and Checkov still pass. I'm currently working on it with AWS.*
+
 Branches upload a weekly sales CSV. Within seconds every row is checked, good rows land in a queryable data lake, bad rows are kept with the reason they failed, and every file gets an audit record. Failures alert someone by email. The whole stack is Terraform, deployed by GitHub Actions with no stored AWS keys, and it is designed to run at zero cost.
 
 ![Architecture](docs/architecture.png)
@@ -12,11 +14,11 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 
 A retailer's branches each send a sales spreadsheet. Head office combines them by hand, errors surface only after reports have gone out, and nobody can say which file a number came from. This pipeline replaces the manual step with one that:
 
-- **Validates every row** against explicit rules (date, branch, SKU format, units, revenue, cost, duplicates).
+- Validates every row against explicit rules (date, branch, SKU format, units, revenue, cost, duplicates).
 - Never silently drops data. Rejected rows are stored with every reason they failed, so the branch can fix and resend.
-- **Records an audit trail per file**: status, rows loaded, rows rejected, start and finish time.
+- Records an audit trail per file: status, rows loaded, rows rejected, start and finish time.
 - Is safe to re-run. Uploading the same file twice does not double-count sales.
-- **Tells a person when something breaks** rather than failing quietly.
+- Tells a person when something breaks rather than failing quietly.
 
 ## How it works
 
@@ -63,7 +65,9 @@ aws dynamodb scan --table-name ssp-load-audit
 
 ## Deploy
 
-1. **Bootstrap once** (state bucket and GitHub deploy role):
+Prerequisites: Terraform 1.10 or later, an AWS account, the GitHub CLI for the bootstrap step, and Python 3.13 to run the tests locally.
+
+1. Bootstrap once (state bucket and GitHub deploy role):
    ```bash
    cd terraform/bootstrap
    terraform init
@@ -71,7 +75,7 @@ aws dynamodb scan --table-name ssp-load-audit
      -var github_subject_prefix="$(gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix)"
    ```
    GitHub's OIDC subject includes the owner and repo IDs, so the role trusts this exact repository even if the name is later reused.
-2. **Add repository secrets** in GitHub: `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET` (both from the bootstrap outputs) and `ALERT_EMAIL`.
+2. Add repository secrets in GitHub: `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET` (both from the bootstrap outputs) and `ALERT_EMAIL`.
 3. Push to `main`. The pipeline runs tests, format and validate, Checkov, then plan and apply. Pull requests stop at plan.
 4. Confirm the SNS subscription email that AWS sends.
 
