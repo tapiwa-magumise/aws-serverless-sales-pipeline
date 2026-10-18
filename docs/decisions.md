@@ -29,7 +29,7 @@ Crawlers are billed per run and add a delay before new data is visible. Partitio
 ## 7. Zero-cost guardrails
 
 - **SSE-S3 and AWS-managed keys rather than customer-managed KMS keys.** Each customer-managed key has a monthly charge. Data is still encrypted at rest.
-- **No VPC for Lambda.** The function only talks to AWS public endpoints. Putting it in a VPC would need a NAT gateway or VPC endpoints, which are billed by the hour, for no security gain here.
+- No VPC for Lambda. The function only talks to AWS public endpoints. Putting it in a VPC would need a NAT gateway or VPC endpoints, which are billed by the hour, for no security gain here.
 - **14-day log retention, 30-day raw file expiry, 7-day query result expiry.**
 - **Athena per-query scan cap of 10 MB** (the minimum), so a careless query cannot run up a bill.
 - **SQS maximum concurrency of 2** on the Lambda trigger, so a flood of files cannot use up the account's concurrency.

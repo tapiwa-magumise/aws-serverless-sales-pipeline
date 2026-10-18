@@ -13,9 +13,9 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 A retailer's branches each send a sales spreadsheet. Head office combines them by hand, errors surface only after reports have gone out, and nobody can say which file a number came from. This pipeline replaces the manual step with one that:
 
 - **Validates every row** against explicit rules (date, branch, SKU format, units, revenue, cost, duplicates).
-- **Never silently drops data.** Rejected rows are stored with every reason they failed, so the branch can fix and resend.
+- Never silently drops data. Rejected rows are stored with every reason they failed, so the branch can fix and resend.
 - **Records an audit trail per file**: status, rows loaded, rows rejected, start and finish time.
-- **Is safe to re-run.** Uploading the same file twice does not double-count sales.
+- Is safe to re-run. Uploading the same file twice does not double-count sales.
 - **Tells a person when something breaks** rather than failing quietly.
 
 ## How it works
@@ -72,7 +72,7 @@ aws dynamodb scan --table-name ssp-load-audit
    ```
    GitHub's OIDC subject includes the owner and repo IDs, so the role trusts this exact repository even if the name is later reused.
 2. **Add repository secrets** in GitHub: `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET` (both from the bootstrap outputs) and `ALERT_EMAIL`.
-3. **Push to `main`.** The pipeline runs tests, format and validate, Checkov, then plan and apply. Pull requests stop at plan.
+3. Push to `main`. The pipeline runs tests, format and validate, Checkov, then plan and apply. Pull requests stop at plan.
 4. Confirm the SNS subscription email that AWS sends.
 
 To run it locally instead:
