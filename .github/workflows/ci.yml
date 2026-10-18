@@ -4,8 +4,10 @@ name: ci
 # Merge to main: the same checks, then apply.
 on:
   pull_request:
+    paths-ignore: ["**.md", "docs/**"]
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
 permissions:
@@ -34,6 +36,10 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform format
         run: terraform fmt -check -recursive terraform
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.64.0
+      - run: tflint --chdir=terraform --recursive
       - name: Terraform validate
         working-directory: terraform
         run: terraform init -backend=false -input=false && terraform validate
