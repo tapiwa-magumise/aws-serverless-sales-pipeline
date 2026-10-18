@@ -114,5 +114,6 @@ resource "aws_dynamodb_table" "audit" {
     type = "S"
   }
 
-  point_in_time_recovery { enabled = false } # PITR is billed; audit can be rebuilt from S3
+  # review: accept DDB_NO_PITR Point-in-time recovery is billed, and the audit can be rebuilt from S3
+  point_in_time_recovery { enabled = false }
 }
