@@ -16,7 +16,6 @@ __pycache__/
 # Local
 .env
 .DS_Store
-.claude/
 
 # Video
 video/node_modules/
