@@ -92,6 +92,6 @@ src/validator/      Lambda code: rules.py (pure validation) and handler.py (AWS 
 tests/              Unit tests for every validation rule
 terraform/          Main stack: storage, ingest, catalog, monitoring
 terraform/bootstrap State bucket and GitHub OIDC deploy role
-docs/               Architecture diagrams (draw.io + PNG), walkthrough, decisions, runbook
+docs/               Architecture diagrams (draw.io + PNG), decisions, runbook
 .github/workflows/  CI/CD
 ```
