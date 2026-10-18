@@ -1,6 +1,6 @@
 # Serverless sales data pipeline on AWS
 
-[![ci](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/gumagatsby/aws-serverless-sales-pipeline/actions/workflows/ci.yml)
+[![ci](https://github.com/tapiwa-magumise/aws-serverless-sales-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/tapiwa-magumise/aws-serverless-sales-pipeline/actions/workflows/ci.yml)
 
 *Deploys are paused. Since 18 October 2026 AWS has refused Lambda calls on this account, so the plan step fails; tests, format, validate and Checkov still pass. I'm currently working on it with AWS.*
 

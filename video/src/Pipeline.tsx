@@ -485,7 +485,7 @@ const Close: React.FC<{ f: number }> = ({ f }) => {
       <div style={{ fontSize: 30, color: INK, lineHeight: 1.5, marginTop: 50, maxWidth: 820, opacity: ramp(f, a + 15, a + 30) }}>
         Deployed by GitHub Actions with no stored keys.<br />Runs at $0.
       </div>
-      <div style={{ fontSize: 26, color: MUTED, marginTop: 60, opacity: ramp(f, a + 50, a + 65) }}>github.com/gumagatsby/aws-serverless-sales-pipeline</div>
+      <div style={{ fontSize: 26, color: MUTED, marginTop: 60, opacity: ramp(f, a + 50, a + 65) }}>github.com/tapiwa-magumise/aws-serverless-sales-pipeline</div>
     </AbsoluteFill>
   );
 };
