@@ -2,8 +2,6 @@
 
 [![ci](https://github.com/tapiwa-magumise/aws-serverless-sales-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/tapiwa-magumise/aws-serverless-sales-pipeline/actions/workflows/ci.yml)
 
-*Deploys are paused. Since 18 October 2026 AWS has refused Lambda calls on this account, so the plan step fails; tests, format, validate and Checkov still pass. I'm currently working on it with AWS.*
-
 Branches upload a weekly sales CSV. Within seconds every row is checked, good rows land in a queryable data lake, bad rows are kept with the reason they failed, and every file gets an audit record. Failures alert someone by email. The whole stack is Terraform, deployed by GitHub Actions with no stored AWS keys, and it is designed to run at zero cost.
 
 ![Architecture](docs/architecture.png)
